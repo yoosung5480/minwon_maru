@@ -2,7 +2,7 @@ from minwon_maru.engine.chat import ChatManager, ProjPath
 
 
 paths = ProjPath(
-        data_root_str="/Users/yujin/Desktop/코딩shit/python_projects/대한민국해커톤/민원마루ver1/datas",
+        data_root_str="./datas",
         metadata_name="metadata.json",
         raw_docs_dir="rawDocs",
         parsed_docs_dir="parsedDocs",

@@ -7,11 +7,19 @@ import json
 import sys
 
 from langchain_openai import OpenAIEmbeddings
+from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
 from minwon_maru.engine.crag_chain import get_chain
 from minwon_maru.engine.init.load_docs import load_docs
 from minwon_maru.engine.init.check_consistency import check_filesystem_concurrency
 from minwon_maru.engine.init.make_metadata import generate_metadata
 from minwon_maru.tools.context import create_department_info_retriever
+from minwon_maru.tools.llms import llm_list
+
+
+
+
 
 # ---------------------------
 # 경로 총괄 (필요 최소치)
@@ -63,7 +71,7 @@ class Chat:
         self.embeddings = OpenAIEmbeddings()
         self.chat_id = chat_id
         self.paths = paths
-        self.count = 1
+        self.count = 0
         self.input_history = []  # 유저의 질의 기록
         self.output_history = [] # llm 답변 기록
         self.chain = get_chain(
@@ -127,6 +135,53 @@ class Chat:
         return : tuple(사용자 질의 히스토리 리스트, llm답변 히스토리 리스트)
         '''
         return self.input_history, self.output_history
+    
+    
+
+    def summarize_history(self, window_size: int = 3) -> str:
+        """
+        window_size (int) : 요약 할 최근 대화 갯수
+        최근 대화(window_size 쌍)를 간단히 요약
+        """
+        summarize_prompt = PromptTemplate.from_template(
+            """아래는 민원인과 상담원의 최근 대화 기록입니다.
+            당신의 역할은 이 대화 내용을 행정 부서 담당자가 빠르게 이해하고 업무를 처리할 수 있도록
+            핵심 내용을 정리하는 것입니다. 
+
+            요약본은 담당자가 업무 기록으로 바로 참고할 수 있도록
+            **명확하고 간결하며 구조적으로** 작성하세요. 
+            불필요한 인사말, 잡담은 제외하고, 민원인의 구체적인 요청사항과 맥락을 중심으로 정리하세요.
+
+            출력 형식은 다음을 따르세요:
+            - 민원 요지: (한두 문장으로 핵심 민원 내용)
+            - 요청사항/질의: (민원인이 실제로 알고 싶거나 처리해달라고 한 구체적 요구)
+            - 상황 배경: (필요할 경우, 민원인의 사정이나 조건 등 부연 설명)
+
+            # 대화기록:
+            {history}
+
+            # 요약본:
+            """
+        )
+
+
+        llm = llm_list["gpt-4.1-mini"]
+        chain = summarize_prompt | llm | StrOutputParser()
+
+        # 최근 window_size 쌍만 정리
+        chat_history = []
+        for i in range(min(self.count, window_size)):
+            chat_history.append(
+                f"[사용자] {self.input_history[-(i+1)]}\n[상담원] {self.output_history[-(i+1)]}"
+            )
+
+        # 시간 순서로 정렬 (최신→과거 → 뒤집기)
+        chat_history = "\n\n".join(reversed(chat_history))
+
+        return chain.invoke({"history": chat_history})
+
+    
+
 
     def ask(self, text: str) -> str:
         resp = self.chain.invoke(
