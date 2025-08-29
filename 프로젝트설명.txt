@@ -1,0 +1,85 @@
+''' 
+# 프로젝트 목표
+아직 행정동 홈페이지의 챗봇은 민원처리를 위한 감정"응대"의 역할과 부서로 연결 기능이 떨어진다.
+우리는 파인튜닝 없이 RAG를 통해서 행정문서 내용을 기반으로 사용자에게 정확한 응답을 주고, 사용자 응답을 기반으로 부서에 채팅내용을 정리해서 기록해준다. 
+"민원마루"라는 웹서비스를 통해서 지자체 행정부서가 민원인과의 감정소비를 덜게하고, 간단한 정보성 문의의 경우 더욱 빠르고 정확하기 24시간 답변해줄수 있는 서비스를 구축한다.
+
+
+### 상담챗봇 민원인 사용자와 채팅 workflow
+1. 상담인 채팅내용중에서 개인정보 마스킹하기
+2. metadata를 읽어와서 요약본들에 대해서 유사도 검색 기반으로 문서 선정
+3. 선정된 문서를 기반으로 RAG 체인 invoke하기
+4. 생성된 문서를 메모리에 recent_docs에 올리기.
+5. 다음 채팅시, recent_docs부터 검색하고, 그 뒤에 메타데이터 문서에서 찾기.
+6. recent_docs는 queue로 관리. 최근 참조된 문서는 가장 앞으로 다시 가져오기.
+7. 채팅종료시, 부서들과 채팅 log기반으로 부서와 유사도 검색후, thresh_hold값 이상인 유사도중에서, 가장 높은 부서로 데이터 정리해서 연결., 대화의 모든 값이 thresh_hold값 이하면 전송 x
+
+### 업무 어시스텐트
+부서별 민원이 들어온 내용의 업무를 기록, 관리하기.
+민원인과의 채팅로그를 기록하고 관리한다.
+
+# 프로젝트 구조
+root/
+  - cook_books/                             # 짜투리 코드 있음
+  - minwon_maru/ # 현재 앱 구동을 위한 라이브러리
+        - engine/
+            - chain.py                      # 안씀!
+            - crag_chain.py                 # !!핵심 채팅 기능 구현!!
+            - minwon_maru_counselor.py      # 민원 응대용 상담 챗봇 
+            - minwon_maru_assistant.py      # 부서 업무 협력용 챗봇-> 아직안함.
+        - init/                             # 파일시스템이 현재 구조와 같은지 확인해야함
+            - load_docs.py          
+            - make_metadata.py 
+            - check_consistency.py          # 파일시스템 메타데이터 구조 확인.
+        - prompts/
+            - prompt.py
+        - tools/
+            - context.py                    # 핵심 내용기능
+            - myPDFparser.py
+            - json_tool.py
+            - llms.py
+            - personal_info_keeper.py       # 사용자 개인정보 입력시 마스킹해서 llm에 전달하지 않게하는 마스킹 함수 정의부분
+        - workflows/
+            - basicCrag.py                  # 구현은 돼있으나, 아직 활용안할꺼임., 안씀!
+  - main.py                                  ### 실제 웹통신 앱 이게 사실 본체임
+  - test.ipynb                               ### 여기에 코드조각이랑 ouput 다있음. 이거 참고하면됌
+  - app.py
+  - datas/
+        - reference/
+            - work_page_info.json
+            - department_info.json
+        - metadata.json
+        - rawDocs/
+            - 문서1.pdf
+            - 문서2.pdf
+            - 문서3.pdf
+            - 문서4.pdf
+            - 문서5.pdf
+        - parsedDocs/
+            - 문서1.json
+            - 문서2.json
+            - 문서3.json
+            - 문서4.json
+            - 문서5.json
+  - outputs/
+        - 날짜/
+            - 부서별민원현황
+            ... 업데이트 예정   
+            - 채팅로그들
+            ... 업데이트 예정
+
+# 개발환경
+## conda 가상환경 만들기, requirements.txt에 있는 라이브러리 다운받기
+
+
+
+# 사용예시
+### 웹소켓 코드 동작
+1. 프로젝트 루트 바꾸기
+main.py 파일의 data_root_str 루트 바꾸기
+
+2. 경로이동
+cd root
+
+3. 실행
+python main.py

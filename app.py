@@ -1,0 +1,3 @@
+from speak_note.engine.minwon_maru_counselor import chat_with_counselor
+
+chat_with_counselor()
