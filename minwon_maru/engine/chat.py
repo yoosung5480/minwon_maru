@@ -155,7 +155,9 @@ class ChatManager:
         self._init_store()
 
     def _init_store(self):
-        ok = check_filesystem_concurrency()
+        ok = check_filesystem_concurrency(
+            data_root=self.paths.data_root_str
+        )
         if ok and self.paths.metadata_path.exists():
             try:
                 meta = json.loads(self.paths.metadata_path.read_text(encoding="utf-8"))

@@ -1,0 +1,64 @@
+{
+  "workpages": [
+    {
+      "page_summarize": "정부24: 각종 민원 신청·조회·발급 원스톱 포털",
+      "url": "https://plus.gov.kr/",
+      "desc": "정부부처·지자체의 주요 서비스를 한 곳에서 검색·신청·발급할 수 있는 통합 민원 포털"
+    },
+    {
+      "page_summarize": "국민신문고: 민원·신고·제안 온라인 접수",
+      "url": "https://www.epeople.go.kr/",
+      "desc": "민원, 행정·부패 신고, 국민제안 접수 및 진행조회 기능을 제공하는 국민권익위원회 포털"
+    },
+    {
+      "page_summarize": "안전신문고: 생활 안전 위험 신고",
+      "url": "https://www.safetyreport.go.kr/",
+      "desc": "도로·시설물 파손, 불법 주정차, 재난 위험 등 생활 속 안전 문제를 사진과 함께 신고·조회"
+    },
+    {
+      "page_summarize": "국민콜110 채팅상담: 24시간 정부 민원 안내",
+      "url": "https://www.110.go.kr/consult/chat.do",
+      "desc": "정부민원안내 통합 채팅상담 창구(국민콜110). 카카오톡 등 365일 24시간 상담 지원"
+    },
+    {
+      "page_summarize": "국민비서: 행정 정보 알림·상담 챗봇",
+      "url": "https://www.mois.go.kr/frt/sub/a06/b04/nationalSecretary/screen.do",
+      "desc": "개인 맞춤형 행정 알림과 온라인 상담(챗봇 포함)을 제공하는 행정안전부의 ‘국민비서’ 서비스"
+    },
+    {
+      "page_summarize": "서울시 응답소: 120 민원·제안·신고 포털",
+      "url": "https://eungdapso.seoul.go.kr/main.do",
+      "desc": "서울시 온라인 민원 통합 창구. 전화·문자·챗봇 접수 민원 진행조회 기능 제공"
+    },
+    {
+      "page_summarize": "부산민원120: 부산시 민원 신청·확인",
+      "url": "https://www.busan.go.kr/minwon",
+      "desc": "부산시 온라인 민원 포털. 민원 신청·나의 민원 확인, 신고센터 등(국민신문고 연계 운영 공지 포함)"
+    },
+    {
+      "page_summarize": "경기민원24: 경기도 민원 신청",
+      "url": "https://gg24.gg.go.kr/",
+      "desc": "경기도 주요 민원 신청과 이용안내 제공(경기도 차원의 별도 민원 포털)"
+    },
+    {
+      "page_summarize": "위택스(WeTax): 지방세 신고·납부",
+      "url": "https://wetax.go.kr/main.do",
+      "desc": "지방세 전자신고·납부 및 각종 증명 발급·조회(지방소득세, 취득세, 등록면허세 등)"
+    },
+    {
+      "page_summarize": "홈택스: 국세 민원·증명·신고",
+      "url": "https://www.hometax.go.kr/",
+      "desc": "국세청 홈택스 포털. 민원증명, 신고·납부, 상담 등 국세 관련 온라인 서비스 제공"
+    },
+    {
+      "page_summarize": "영사민원24: 재외국민 온라인 민원",
+      "url": "https://consul.mofa.go.kr/",
+      "desc": "여권·공증·영사확인 등 재외공관 민원 온라인 서비스(웹/모바일 앱 ‘365민원포털’ 연계)"
+    },
+    {
+      "page_summarize": "온라인 행정심판: 행정심판 청구·조회",
+      "url": "https://www.simpan.go.kr/",
+      "desc": "행정청 처분에 대한 행정심판을 온라인으로 청구·진행조회"
+    }
+  ]
+}
