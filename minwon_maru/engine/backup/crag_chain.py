@@ -6,7 +6,6 @@ from typing_extensions import TypedDict
 
 # ===== chain.py 에 있던 import =====
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -17,7 +16,6 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from minwon_maru.tools.context import create_metadata_retriever_with_map, create_workpages_retriever
 from minwon_maru.tools.llms import llm_list
 from minwon_maru.tools.personal_info_keeper import personal_info_keeper
-from minwon_maru.tools.json_tool import load_metadata, load_json_basic
 import asyncio
 
 from langchain.schema import Document
@@ -82,10 +80,9 @@ class CRAG(Workflow):
         self,
         rag_pipeline,
         *,  # 명시적 키워드 인자
-        metadata_path,
-        embeddings,
-        workpages_path,
-        chat_id,
+        metadata_retriever,
+        summarize_map,
+        workpage_retriever,
         llm_list=llms.llm_list,
     ):  
         self.chat_count = 0
@@ -95,7 +92,6 @@ class CRAG(Workflow):
         self.llm_list = llm_list
         self.rag_pipeline = rag_pipeline
         self.web_search_prompt = prompt.prompt_to_refine_text
-        self.chat_id = chat_id
 
         # 평가자 정의
         self.structured_llm_grader = self.llm_list["gpt-4.1-mini"].with_structured_output(GradeDocuments)
@@ -114,20 +110,8 @@ class CRAG(Workflow):
         # 세션 히스토리 store를 CRAG 필드로 보유
         self.store: dict[str, ChatMessageHistory] = {}
         self.question_history = []
+
         # chain.py에서 가져오던 리트리버/맵을 CRAG 필드로 보관
-
-        self.embeddings = embeddings
-        self.metadata_path = metadata_path
-        metadata_retriever, summarize_map = create_metadata_retriever_with_map(
-            metadata_path,
-            embeddings,
-        )
-
-        self.workpages_path = workpages_path
-        workpage_retriever = create_workpages_retriever(
-            workpages_path,
-            embeddings,
-        )
         self.metadata_retriever = metadata_retriever
         self.summarize_map = summarize_map
         self.workpage_retriever = workpage_retriever
@@ -290,95 +274,6 @@ class CRAG(Workflow):
         state["context"] = new_context
         return state
 
-    
-    def ask_back(self, state: GraphState):
-        """
-        최근 대화와 업무 지식 요약을 바탕으로
-        민원인에게 정중한 '재질문/다음단계 안내'를 1~2문장으로 생성.
-        생성은 self.rag_pipeline으로 호출해 히스토리에 남긴다.
-        """
-        # 1) 최근 대화 히스토리 텍스트 구성 (최신 6~8개 메시지 정도, 길이 제한)
-        try:
-            session_hist = self.get_session_history(self.chat_id).messages
-        except Exception:
-            session_hist = state.get("history", []) or []
-        pairs = []
-        # 최신 3개까지만, "역할: 내용" 포맷으로 정리
-        for m in session_hist[-3:]:
-            role = "사용자" if m.type in ("human", "user") else "상담원"
-            content = (m.content or "").strip()
-            if content:
-                pairs.append(f"[{role}] {content}")
-        history_text = "\n".join(pairs)
-        history_text = history_text  # 안전 길이 제한
-
-        # 2) 업무 지식(메타데이터 요약) 가져오기 (없으면 빈 문자열)
-        info_text = ""
-        try:
-            meta = load_metadata(self.metadata_path)  # load_metadata(경로) 형태라면 이렇게
-            # 만약 load_metadata가 retriever를 받도록 구현되었다면: load_metadata(self.metadata_retriever)
-            docs = meta.get("Docs", [])
-            chunks = []
-            for d in docs:  # 과도한 길이 방지
-                s = d.get("summarize") or d.get("summary") or ""
-                if s:
-                    chunks.append(s)
-            info_text = "\n".join(chunks)
-        except Exception:
-            pass
-
-        # 3) ask-back 브리지 프롬프트 (간결/정중/구조화)
-        # ask_back 전용 프롬프트 (OOD 방지 + 분야 한정 안내 + 대화 유지)
-        ask_back_prompt = PromptTemplate.from_template(
-            """아래는 최근 대화 기록과 당신이 보유한 업무 지식 요약입니다.
-        당신의 전문 분야는 (info)입니다. 현재 질문/대화는 이 분야와 직접 관련이 없을 가능성이 큽니다. 
-        다음 지침을 따르세요:
-        - 응답은 친절한 어투를 유지하라.
-        - 모르는 내용, 또는 전문 분야 밖의 질문에는 **추측 없이** 정중히 범위 밖임을 밝혀라.
-        - 대신 당신의 전문 영역을 간단히 소개하고, 사용자가 이어갈 수 있도록 **분야 관련 선택지나 예시 질문 1~2개**를 제시하라.
-        - 개인정보 추가 수집은 지양하고, 문장은 1~2문장으로 **짧고 공손하게**.
-        - 절대 잘 모르는 사안에 대해 확답/절차/금액 등 **구체 정보는 제공하지 마라**.
-
-        # 대화기록:
-        {history}
-
-        # 당신의 업무 지식 요약:
-        {info}
-
-        # 출력(한국어, 1~2문장):
-        """
-        )
-
-
-        # 4) 모델에게 생성 지시문을 만들어서 rag_pipeline로 호출 (히스토리 기록용)
-        directive = ask_back_prompt.format(history=history_text, info=info_text)
-
-        ability = state.get("ability", "일반 지식")
-        history = state.get("history", [])
-        context = state.get("context", "")  # 문맥 유지(있으면 전달)
-        raw_input = state.get("raw_input", state.get("input", ""))  # 히스토리 키와 형식 일관성 유지
-
-        # 주의: self.rag_pipeline은 RunnableWithMessageHistory로 래핑되어 있음.
-        # input_messages_key="raw_input" 이므로 raw_input은 사용자 발화로 기록됨.
-        # → 여기서는 모델 출력(assistant 메시지)이 히스토리에 남는 게 목적이므로,
-        #    raw_input에는 원 사용자 발화를 그대로 유지하는 것이 안전하다.
-        #    (web_search와 동일한 패턴: 지시문을 input에 넣어 모델이 답변 생성)
-
-        generation = self.rag_pipeline.invoke(
-            {
-                "input": directive,        # 모델이 따라야 할 지시문
-                "raw_input": raw_input,    # 세션에 저장될 "사용자 발화"는 기존 원문 유지
-                "ability": ability,
-                "history": history,
-                "context": context
-            }
-        )
-
-        return {"generation": generation}
-
-        
-
-
 
     def web_search(self, state: GraphState):
         print("\n==== [WEB SEARCH] ====\n")
@@ -429,7 +324,7 @@ class CRAG(Workflow):
 
     def decide_to_generate(self, state: GraphState):
         print("==== [ASSESS GRADED DOCUMENTS] ====")
-        return "ask_back" if state["web_search"] == "Yes" else "generate"
+        return "web_search_node" if state["web_search"] == "Yes" else "generate"
 
     # ==================== 그래프 정의 ====================
     def define_workflow(self):
@@ -438,7 +333,7 @@ class CRAG(Workflow):
         workflow.add_node("search_document", self.search_document)   # ← 먼저 검색
         workflow.add_node("grade_documents", self.grade_documents)
         workflow.add_node("generate", self.generate)
-        workflow.add_node("ask_back", self.ask_back)
+        workflow.add_node("web_search_node", self.web_search)
         workflow.add_node("pass", self.passthrough)
 
         workflow.add_edge(START, "search_document")
@@ -447,11 +342,11 @@ class CRAG(Workflow):
             "grade_documents",
             self.decide_to_generate,
             {
-                "ask_back": "ask_back",
+                "web_search_node": "web_search_node",
                 "generate": "generate",
             },
         )
-        workflow.add_edge("ask_back", "pass")
+        workflow.add_edge("web_search_node", "pass")
         workflow.add_edge("generate", "pass")   # 누락됐던 엣지 추가
         workflow.add_edge("pass", END)
 
@@ -507,9 +402,17 @@ def get_chain(
     metadata_path: Path,
     workpages_path: Path,
     embeddings,
-    chat_id,
 ) -> CRAG:
     # 1) retriever 생성
+    metadata_retriever, summarize_map = create_metadata_retriever_with_map(
+        metadata_path,
+        embeddings,
+    )
+    workpage_retriever = create_workpages_retriever(
+        workpages_path,
+        embeddings,
+    )
+
     # 2) RAG 체인 (응답 문자열 생성용 그대로 유지)
     RAGchain = (
     {
@@ -535,10 +438,9 @@ def get_chain(
     # 3) CRAG 인스턴스 생성 (store 필드 보유, 리트리버 보관)
     crag_chain = CRAG(
         rag_pipeline=None,  # 아래에서 with_message_history 주입
-        metadata_path=metadata_path,
-        workpages_path=workpages_path,
-        embeddings=embeddings,
-        chat_id = chat_id
+        metadata_retriever=metadata_retriever,
+        summarize_map=summarize_map,
+        workpage_retriever=workpage_retriever,
     )
 
     # 4) personal_info_keeper → RAG

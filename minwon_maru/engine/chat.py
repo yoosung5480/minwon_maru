@@ -78,6 +78,7 @@ class Chat:
             metadata_path=self.paths.metadata_path,
             workpages_path=self.paths.workpages_path,
             embeddings=self.embeddings,
+            chat_id=self.chat_id
         )
 
     def get_most_relevant_department(self, top_k: int = 3, window : int = 3):
