@@ -28,3 +28,7 @@ langchain_openai
 langchain_upstage
 langchain_teddynote
 jinja2
+
+# Flask 서버
+flask
+flask-cors
